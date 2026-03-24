@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#F5F2ED" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Memo" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <title>Memo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* ─── Paleta ─── */
+      --sand:       #C4A882;   /* arena cálida — botón mic */
+      --sand-dark:  #B09070;   /* sand hover/active */
+      --sand-light: #F5EFE6;   /* fondo arena muy suave */
+      --steel:      #7B9BB4;   /* azul acero */
+      --steel-light:#E8F0F6;   /* azul acero claro */
+      --powder:     #B3C8D9;   /* azul polvo */
+      --powder-light:#EDF4F8;  /* azul polvo muy claro */
+      --navy:       #182233;   /* navy oscuro — texto principal */
+
+      /* ─── UI ─── */
+      --bg:         #F5F2ED;
+      --surface:    #FFFFFF;
+      --border:     #E5DDD3;
+      --text:       #182233;
+      --text-muted: #7B9BB4;
+      --red:        #C0614A;
+      --radius:     16px;
+      --shadow:     0 2px 16px rgba(24,34,51,0.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--border);
+    }
+    .app-logo {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--navy);
+    }
+    .app-logo span { color: var(--sand); }
+
+    .settings-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .settings-btn:hover { background: var(--border); }
+    .settings-btn i { font-size: 22px; }
+
+    /* ─── RECORD SECTION ─── */
+    .record-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 36px 20px 28px;
+      gap: 16px;
+    }
+
+    .record-btn {
+      width: 104px;
+      height: 104px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #FFFFFF;
+      color: var(--sand);
+      box-shadow: 0 6px 28px rgba(196,168,130,0.40);
+      transition: transform 0.15s, box-shadow 0.15s, background 0.2s;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .record-btn svg { width: 44px; height: 44px; fill: var(--sand); transition: fill 0.2s; }
+    .record-btn i   { font-size: 40px; }
+    .record-btn:active { transform: scale(0.93); }
+
+    .record-btn.recording {
+      background: #FDF4F2;
+      box-shadow: 0 6px 28px rgba(192,97,74,0.35);
+      animation: pulse-rec 1.4s ease-in-out infinite;
+    }
+    .record-btn.recording svg { fill: var(--red); }
+    .record-btn.processing {
+      background: var(--steel-light);
+      box-shadow: 0 6px 28px rgba(123,155,180,0.35);
+      cursor: default;
+    }
+    .record-btn.processing svg { fill: var(--steel); }
+    @keyframes pulse-rec {
+      0%, 100% { transform: scale(1);    box-shadow: 0 6px 28px rgba(192,97,74,0.35); }
+      50%       { transform: scale(1.05); box-shadow: 0 6px 44px rgba(192,97,74,0.55); }
+    }
+
+    /* Spinner animation for processing */
+    .record-btn.processing i { animation: spin 1.1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .record-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      min-height: 20px;
+      letter-spacing: 0.1px;
+    }
+
+    .transcript-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      width: 100%;
+      max-width: 480px;
+      min-height: 56px;
+      display: none;
+      font-style: italic;
+      color: var(--text-muted);
+    }
+    .transcript-box.visible { display: block; }
+
+    /* ─── IDEAS SECTION ─── */
+    .ideas-section {
+      flex: 1;
+      padding: 0 16px 100px;
+    }
+
+    /* Filter chips */
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 0 0 14px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filter-row::-webkit-scrollbar { display: none; }
+
+    .filter-chip {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 99px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .filter-chip i { font-size: 14px; }
+    .filter-chip.active {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: #fff;
+    }
+
+    /* Idea Card */
+    .idea-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin-bottom: 12px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .idea-card:active { transform: scale(0.985); box-shadow: none; }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 7px;
+      gap: 10px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--navy);
+      line-height: 1.3;
+      flex: 1;
+    }
+    .card-coins { font-size: 14px; flex-shrink: 0; letter-spacing: 1px; }
+
+    .card-summary {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 10px;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .category-badge i { font-size: 12px; }
+    .card-date {
+      font-size: 11px;
+      color: var(--powder);
+      margin-left: auto;
+      font-weight: 500;
+    }
+
+    /* Category colours using the palette */
+    .cat-musica  { background: var(--powder-light); color: var(--steel); }
+    .cat-app     { background: var(--steel-light);  color: #4A7A9B; }
+    .cat-web     { background: #EEF5F0;             color: #3D7A57; }
+    .cat-negocio { background: var(--sand-light);   color: var(--sand-dark); }
+    .cat-otro    { background: #F2F2F2;             color: #666; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 52px 24px;
+      color: var(--text-muted);
+    }
+    .empty-state .big-icon {
+      font-size: 52px;
+      color: var(--powder);
+      margin-bottom: 14px;
+      display: block;
+    }
+    .empty-state p { font-size: 14px; line-height: 1.7; }
+
+    /* ─── MODAL ─── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(24,34,51,0.45);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-sheet {
+      background: var(--surface);
+      border-radius: 24px 24px 0 0;
+      padding: 24px 20px 44px;
+      width: 100%;
+      max-height: 88dvh;
+      overflow-y: auto;
+      animation: slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+
+    .modal-handle {
+      width: 40px; height: 4px;
+      background: var(--border);
+      border-radius: 99px;
+      margin: 0 auto 22px;
+    }
+    .modal-coins { font-size: 22px; margin-bottom: 8px; }
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 14px;
+      line-height: 1.3;
+    }
+    .modal-section { margin-bottom: 18px; }
+    .modal-section-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .modal-section-label i { font-size: 14px; color: var(--sand); }
+    .modal-section-body {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .btn-delete {
+      flex: 1;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1.5px solid #F0CFC8;
+      background: #FDF4F2;
+      color: var(--red);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-delete i { font-size: 16px; }
+    .btn-close {
+      flex: 2;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: none;
+      b!ckground: var(--navy);
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ─── SETTINGS ─── */
+    .settings-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--navy);
+    }
+    .settings-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.55;
+    }
+    .settings-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .settings-input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--navy);
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+    .settings-input:focus { border-color: var(--sand); }
+    .settings-save {
+      width: 100%;
+      padding: 15px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--navy);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .settings-link {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--sand-dark);
+      text-decoration: none;
+    }
+
+    /* API Banner */
+    .api-banner {
+      margin: 0 16px 4px;
+      padding: 11px 15px;
+      background: var(--sand-light);
+      border: 1px solid #DDD0BE;
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: var(--sand-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .api-banner i { font-size: 16px; flex-shrink: 0; }
+    .api-banner.hidden { display: none; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      background: var(--navy);
+      color: white;
+      padding: 10px 22px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-10px);
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="app-logo">me<span>mo</span></div>
+  <button class="settings-btn" onclick="openSettings()">
+    <i class="ph ph-gear-six"></i>
+  </button>
+</header>
+
+<!-- API KEY BANNER -->
+<div class="api-banner" id="apiBanner" onclick="openSettings()">
+  <i class="ph ph-key"></i>
+  <span>Añade tu API Key de Gemini para analizar ideas</span>
+  <i class="ph ph-arrow-right" style="margin-left:auto;"></i>
+</div>
+
+<!-- RECORD SECTION -->
+<div class="record-section">
+  <button class="record-btn" id="recordBtn" onclick="toggleRecord()">
+    <svg id="recordIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+      <path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/>
+    </svg>
+  </button>
+  <div class="record-hint" id="recordHint">Toca para grabar una idea</div>
+  <div class="transcript-box" id="transcriptBox"></div>
+</div>
+
+<!-- IDEAS SECTION -->
+<div class="ideas-section">
+  <div class="filter-row">
+    <button class="filter-chip active" data-cat="todas" onclick="filterIdeas('todas',this)">
+      Todas
+    </button>
+    <button class="filter-chip" data-cat="musica" onclick="filterIdeas('musica',this)">
+      <i class="ph ph-music-notes"></i> Música
+    </button>
+    <button class="filter-chip" data-cat="app" onclick="filterIdeas('app',this)">
+      <i class="ph ph-device-mobile"></i> App
+    </button>
+    <button class="filter-chip" data-cat="web" onclick="filterIdeas('web',this)">
+      <i class="ph ph-globe"></i> Web
+    </button>
+    <button class="filter-chip" data-cat="negocio" onclick="filterIdeas('negocio',this)">
+      <i class="ph ph-briefcase"></i> Negocio
+    </button>
+    <button class="filter-chip" data-cat="otro" onclick="filterIdeas('otro',this)">
+      <i class="ph ph-lightbulb"></i> Otro
+    </button>
+  </div>
+  <div id="ideasList"></div>
+</div>
+
+<!-- IDEA DETAIL MODAL -->
+<div class="modal-overlay" id="ideaModal" onclick="closeIdeaModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-coins" id="modalCoins"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div style="margin-bottom:18px;">
+      <span class="category-badge" id="modalBadge"></span>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-label">
+        <i class="ph ph-waveform"></i> Idea original
+      </div>
+      <div class="modal-section-body" id="modalTranscript"></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">
+        <i class="ph ph-clipboard-text"></i> Resumen
+      </div>
+      <div class="modal-section-body" id="modalSummary"></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">
+        <i class="ph ph-chart-line-up"></i> Viabilidad
+      </div>
+      <div class="modal-section-body" id="modalViability"></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">
+        <i class="ph ph-storefront"></i> Ya existe algo similar
+      </div>
+      <div class="modal-section-body" id="modalSimilar"></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">
+        <i class="ph ph-currency-circle-dollar"></i> Monetización
+      </div>
+      <div class="modal-section-body" id="modalMonetization"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-delete" onclick="deleteCurrentIdea()">
+        <i class="ph ph-trash"></i> Borrar
+      </button>
+      <button class="btn-close" onclick="closeIdeaModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettings(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="settings-title">Ajustes</div>
+    <div class="settings-desc">
+      Memo usa <strong>Google Gemini</strong> para analizar tus ideas — es completamente gratuito. Solo necesitas una API Key de Google AI Studio (sin tarjeta de crédito). Se guarda únicamente en tu dispositivo.
+    </div>
+    <div class="settings-label">API Key de Google Gemini</div>
+    <input
+      type="password"
+      class="settings-input"
+      id="apiKeyInput"
+      placeholder="AIzaSy..."
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button class="settings-save" onclick="saveSettings()">Guardar</button>
+    <a class="settings-link" href="https://aistudio.google.com/app/apikey" target="_blank">
+      Consigue tu API Key gratis en Google AI Studio →
+    </a>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const STORAGE_KEY   = 'memo_ideas_v1';
+const API_KEY_STORE = 'memo_apikey_v1';
+const GEMINI_MODEL  = 'gemini-1.5-flash';
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let ideas         = [];
+let currentFilter = 'todas';
+let currentIdeaId = null;
+let recognition   = null;
+let isRecording   = false;
+let isProcessing  = false;
+let transcript    = '';
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  ideas = raw ? JSON.parse(raw) : [];
+  renderIdeas();
+  checkApiBanner();
+  setupSpeechRecognition();
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+
+function checkApiBanner() {
+  const key = localStorage.getItem(API_KEY_STORE);
+  document.getElementById('apiBanner').classList.toggle('hidden', !!key);
+}
+
+// ─── SPEECH RECOGNITION ──────────────────────────────────────────────────────
+function setupSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('recordHint').textContent = 'Tu navegador no soporta grabación de voz';
+    document.getElementById('recordBtn').disabled = true;
+    return;
+  }
+  recognition = new SR();
+  recognition.continuous    = true;
+  recognition.interimResults = true;
+  recognition.lang           = 'es-ES';
+
+  recognition.onresult = (e) => {
+    let final = '', interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t + ' '; else interim += t;
+    }
+    transcript = final || interim;
+    const box = document.getElementById('transcriptBox');
+    box.textContent = '"' + transcript.trim() + '"';
+    box.classList.add('visible');
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'not-allowed') showToast('Necesitas dar permiso al micrófono');
+    stopRecording();
+  };
+
+  recognition.onend = () => { if (isRecording) stopRecording(); };
+}
+
+function toggleRecord() {
+  if (isProcessing) return;
+  isRecording ? stopRecording() : startRecording();
+}
+
+function startRecording() {
+  if (!recognition) return;
+  transcript = '';
+  const box = document.getElementById('transcriptBox');
+  box.textContent = '';
+  box.classList.remove('visible');
+  isRecording = true;
+  try { recognition.start(); } catch(e) {}
+  const btn  = document.getElementById('recordBtn');
+  const icon = document.getElementById('recordIcon');
+  btn.classList.add('recording');
+  // swap to stop icon
+  icon.innerHTML = '<path d="M200,64V192a8,8,0,0,1-8,8H64a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H192A8,8,0,0,1,200,64Z"/>';
+  document.getElementById('recordHint').textContent = 'Grabando… toca para detener';
+}
+
+function stopRecording() {
+  isRecording = false;
+  try { recognition.stop(); } catch(e) {}
+  const btn  = document.getElementById('recordBtn');
+  btn.classList.remove('recording');
+  if (transcript.trim().length > 5) {
+    processTranscript(transcript.trim());
+  } else {
+    resetRecordBtn();
+    document.getElementById('transcriptBox').classList.remove('visible');
+  }
+}
+
+// ─── CLAUDE API ───────────────────────────────────────────────────────────────
+async function processTranscript(text) {
+  const apiKey = localStorage.getItem(API_KEY_STORE);
+  if (!apiKey) { showToast('Añade tu API Key primero'); openSettings(); return; }
+
+  isProcessing = true;
+  const btn  = document.getElementById('recordBtn');
+  const icon = document.getElementById('recordIcon');
+  btn.classList.add('processing');
+  // swap to spinner/hourglass path
+  icon.innerHTML = '<path d="M208,75.08V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V75.08a16.07,16.07,0,0,0,5.46,12l52,45.31a4,4,0,0,1,0,6.08l-52,45.31A16.07,16.07,0,0,0,48,195.08V216a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V195.08a16.07,16.07,0,0,0-5.46-12l-52-45.31a4,4,0,0,1,0-6.08l52-45.31A16.07,16.07,0,0,0,208,75.08Z"/>';
+  document.getElementById('recordHint').textContent = 'Analizando con Gemini…';
+
+  const prompt = `Analiza la siguiente idea grabada por voz y devuelve ÚNICAMENTE un JSON válido, sin texto adicional ni markdown.
+
+Idea: "${text}"
+
+JSON exacto a devolver:
+{
+  "title": "Título corto y atractivo (máx 8 palabras)",
+  "category": "musica|app|web|negocio|otro",
+  "summary": "Resumen claro en 2-3 frases.",
+  "viability": "Análisis de viabilidad técnica y de mercado en 2-3 frases.",
+  "similar": "Ejemplos concretos de productos o servicios similares existentes.",
+  "monetization": "Formas concretas de monetizar a corto y medio plazo.",
+  "coins": 3
+}
+
+Reglas: coins de 1 (muy baja rentabilidad) a 5 (excepcional). Categoría: musica, app, web, negocio u otro.`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 800, temperature: 0.4 }
+        })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 400 || res.status === 403) showToast('API Key incorrecta ✗');
+      else showToast('Error de Gemini: ' + (err.error?.message || res.status));
+      resetRecordBtn(); return;
+    }
+
+    const data  = await res.json();
+    const raw   = data.candidates[0].content.parts[0].text.trim();
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON');
+    const a     = JSON.parse(match[0]);
+
+    const idea = {
+      id:           Date.now().toString(),
+      transcript:   text,
+      title:        a.title        || 'Idea sin título',
+      category:     (a.category    || 'otro').toLowerCase(),
+      summary:      a.summary      || '',
+      viability:    a.viability    || '',
+      similar:      a.similar      || '',
+      monetization: a.monetization || '',
+      coins:        Math.min(5, Math.max(1, parseInt(a.coins) || 3)),
+      date:         new Date().toLocaleDateString('es-ES', { day:'2-digit', month:'short' })
+    };
+
+    ideas.unshift(idea);
+    saveIdeas();
+    renderIdeas();
+    showToast('Idea guardada 🪙');
+    document.getElementById('transcriptBox').classList.remove('visible');
+
+  } catch(e) {
+    showToast('Error al analizar la idea');
+    console.error(e);
+  } finally {
+    resetRecordBtn();
+  }
+}
+
+function resetRecordBtn() {
+  isProcessing = false;
+  const btn  = document.getElementById('recordBtn');
+  const icon = document.getElementById('recordIcon');
+  btn.classList.remove('recording', 'processing');
+  // restore mic icon
+  icon.innerHTML = '<path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/>';
+  document.getElementById('recordHint').textContent = 'Toca para grabar una idea';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+const CAT_META = {
+  musica:  { label: 'Música',  icon: 'ph-music-notes',    cls: 'cat-musica'  },
+  app:     { label: 'App',     icon: 'ph-device-mobile',  cls: 'cat-app'     },
+  web:     { label: 'Web',     icon: 'ph-globe',          cls: 'cat-web'     },
+  negocio: { label: 'Negocio', icon: 'ph-briefcase',      cls: 'cat-negocio' },
+  otro:    { label: 'Otro',    icon: 'ph-lightbulb',      cls: 'cat-otro'    },
+};
+
+function coinsHTML(n) {
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    const active = i < n;
+    html += `<span style="display:inline-block;margin:0 1.5px;${active ? '' : 'opacity:0.15;filter:grayscale(1)'}">🪙</span>`;
+  }
+  return html;
+}
+
+function renderIdeas() {
+  const list     = document.getElementById('ideasList');
+  const filtered = currentFilter === 'todas'
+    ? ideas
+    : ideas.filter(i => i.category === currentFilter);
+
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <i class="ph ph-waveform big-icon"></i>
+        <p>${ideas.length === 0
+          ? 'Graba tu primera idea<br>pulsando el botón de arriba'
+          : 'No hay ideas en esta categoría'}</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(idea => {
+    const m = CAT_META[idea.category] || CAT_META.otro;
+    return `
+      <div class="idea-card" onclick="openIdeaModal('${idea.id}')">
+        <div class="card-top">
+          <div class="card-title">${esc(idea.title)}</div>
+          <div class="card-coins">${coinsHTML(idea.coins)}</div>
+        </div>
+        <div class="card-summary">${esc(idea.summary.substring(0,100))}${idea.summary.length>100?'…':''}</div>
+        <div class="card-meta">
+          <span class="category-badge ${m.cls}">
+            <i class="ph ${m.icon}"></i>${m.label}
+          </span>
+          <span class="card-date">${idea.date}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function filterIdeas(cat, btn) {
+  currentFilter = cat;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderIdeas();
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openIdeaModal(id) {
+  const idea = ideas.find(i => i.id === id);
+  if (!idea) return;
+  currentIdeaId = id;
+  const m = CAT_META[idea.category] || CAT_META.otro;
+  document.getElementById('modalCoins').innerHTML     = coinsHTML(idea.coins);
+  document.getElementById('modalTitle').textContent   = idea.title;
+  const badge = document.getElementById('modalBadge');
+  badge.innerHTML   = `<i class="ph ${m.icon}"></i>${m.label}`;
+  badge.className   = 'category-badge ' + m.cls;
+  document.getElementById('modalTranscript').textContent   = idea.transcript;
+  document.getElementById('modalSummary').textContent      = idea.summary;
+  document.getElementById('modalViability').textContent    = idea.viability;
+  document.getElementById('modalSimilar').textContent      = idea.similar;
+  document.getElementById('modalMonetization').textContent = idea.monetization;
+  document.getElementById('ideaModal').classList.add('open');
+}
+
+function closeIdeaModal(e) {
+  if (e && e.target !== document.getElementById('ideaModal')) return;
+  document.getElementById('ideaModal').classList.remove('open');
+  currentIdeaId = null;
+}
+
+function deleteCurrentIdea() {
+  if (!currentIdeaId) return;
+  ideas = ideas.filter(i => i.id !== currentIdeaId);
+  saveIdeas();
+  renderIdeas();
+  document.getElementById('ideaModal').classList.remove('open');
+  showToast('Idea borrada');
+}
+
+function openSettings() {
+  document.getElementById('apiKeyInput').value = localStorage.getItem(API_KEY_STORE) || '';
+  document.getElementById('settingsModal').classList.add('open');
+}
+
+function closeSettings(e) {
+  if (e && e.target !== document.getElementById('settingsModal')) return;
+  document.getElementById('settingsModal').classList.remove('open');
+}
+
+function saveSettings() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (key) { localStorage.setItem(API_KEY_STORE, key); showToast('API Key guardada ✓'); }
+  else     { localStorage.removeItem(API_KEY_STORE);    showToast('API Key eliminada'); }
+  document.getElementById('settingsModal').classList.remove('open');
+  checkApiBanner();
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function saveIdeas() { localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas)); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>
